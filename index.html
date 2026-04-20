@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --grad: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
+      --bg: #fafafa;
+      --card: #fff;
+      --border: #dbdbdb;
+      --text: #262626;
+      --muted: #8e8e8e;
+      --accent: #0095f6;
+      --red: #e53935;
+      --green: #43a047;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header { background: var(--grad); color: #fff; padding: 28px 24px 22px; text-align: center; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.5px; }
+    header p  { margin-top: 6px; font-size: .9rem; opacity: .9; }
+
+    main { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── How it works ── */
+    .how-it-works {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      font-size: .88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .how-it-works strong { color: var(--text); }
+
+    /* ── Snapshot bar ── */
+    #snapshot-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      box-shadow: var(--shadow);
+    }
+    .snapshot-info { font-size: .9rem; }
+    .snapshot-info span { color: var(--muted); font-size: .82rem; display: block; margin-top: 2px; }
+    .snapshot-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── Upload section ── */
+    #upload-section { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+
+    .drop-zone {
+      width: 100%;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 32px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: #f0f8ff; }
+    .drop-zone.loaded  { border-color: var(--green); background: #f1f8f1; }
+    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon  { font-size: 1.8rem; margin-bottom: 8px; }
+    .drop-label { font-weight: 600; font-size: .95rem; }
+    .drop-hint  { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+    .drop-status { font-size: .8rem; margin-top: 8px; font-weight: 500; color: var(--muted); }
+    .drop-zone.loaded .drop-status { color: var(--green); }
+
+    #error-msg { width: 100%; background: #fff3f3; border: 1px solid #ffb3b3; border-radius: 8px; padding: 10px 14px; font-size: .88rem; color: #c62828; display: none; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none; border-radius: 8px; padding: 9px 18px;
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn:not(:disabled):hover { opacity: .85; transform: translateY(-1px); }
+    .btn-primary { background: var(--grad); color: #fff; padding: 12px 40px; font-size: 1rem; }
+    .btn-outline  { background: #fff; border: 1px solid var(--border); color: var(--text); }
+    .btn-danger   { background: #fff3f3; border: 1px solid #ffb3b3; color: var(--red); }
+    .btn-save     { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+
+    /* ── Stats ── */
+    #stats-bar { display: none; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 10px; text-align: center; box-shadow: var(--shadow); }
+    .stat-num   { font-size: 1.6rem; font-weight: 700; }
+    .stat-label { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+    .stat-card.red   .stat-num { color: var(--red); }
+    .stat-card.green .stat-num { color: var(--green); }
+
+    /* ── Results ── */
+    #results-section { display: none; }
+
+    .tab-bar { display: flex; border-bottom: 2px solid var(--border); overflow-x: auto; }
+    .tab-btn {
+      background: none; border: none; padding: 10px 20px;
+      font-size: .9rem; font-weight: 500; color: var(--muted); cursor: pointer;
+      white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: var(--text); border-bottom-color: #833ab4; }
+    .tab-btn .badge { display: inline-block; background: #efefef; border-radius: 10px; padding: 1px 8px; font-size: .75rem; margin-left: 5px; }
+    .tab-btn.active .badge { background: #833ab4; color: #fff; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .panel-controls { display: flex; gap: 10px; padding: 14px 0 10px; flex-wrap: wrap; align-items: center; }
+    .filter-input { flex: 1; min-width: 150px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: .9rem; outline: none; }
+    .filter-input:focus { border-color: var(--accent); }
+    .copy-btn { background: #efefef; border: none; border-radius: 8px; padding: 8px 14px; font-size: .85rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background .15s; }
+    .copy-btn:hover { background: #e0e0e0; }
+    .copy-btn.copied { background: #c8e6c9; color: #2e7d32; }
+
+    /* ── Base updated notice ── */
+    .base-notice {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .85rem;
+      color: #2e7d32;
+      font-weight: 500;
+    }
+
+    .user-list { list-style: none; }
+    .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .user-item:last-child { border-bottom: none; }
+    .user-item.hidden { display: none; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--grad); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; flex-shrink: 0; }
+    .user-name { font-weight: 500; color: var(--text); text-decoration: none; font-size: .95rem; }
+    .user-name:hover { text-decoration: underline; color: var(--accent); }
+    .user-date { font-size: .78rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); font-size: .95rem; }
+
+    footer { text-align: center; padding: 16px; font-size: .8rem; color: var(--muted); border-top: 1px solid var(--border); margin-top: 20px; }
+
+    /* ── Section divider ── */
+    .section-divider {
+      display: flex; align-items: center; gap: 14px;
+      color: var(--muted); font-size: .82rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em; margin: 8px 0 0;
+    }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    @media (max-width: 500px) {
+      #stats-bar, #m-stats-bar { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Instagram Tracker</h1>
+  <p>Unfollow tracker &amp; mutual checker — 100% local, no server</p>
+</header>
+
+<main>
+
+  <div class="section-divider">Unfollow Tracker</div>
+
+  <div class="how-it-works">
+    <strong>How it works:</strong> Upload your <code>followers_1.json</code> once to set the base. Every time after that, just upload the new file — it compares against your saved base and then updates it automatically. No need to keep old files around.
+    <br>Instagram → Settings → Your activity → Download your information → <strong>JSON format</strong>
+  </div>
+
+  <!-- Saved base info -->
+  <div id="snapshot-bar">
+    <div class="snapshot-info" id="snapshot-info">
+      No base saved yet.
+      <span>Upload your followers_1.json to get started.</span>
+    </div>
+    <div class="snapshot-actions">
+      <button class="btn btn-danger" id="btn-clear-saved" style="display:none">Clear base</button>
+    </div>
+  </div>
+
+  <!-- Single file upload -->
+  <div id="upload-section">
+    <div class="drop-zone" id="zone-new">
+      <input type="file" accept=".json,.html,.htm" multiple id="input-new">
+      <div class="drop-icon">📋</div>
+      <div class="drop-label">followers_1.json</div>
+      <div class="drop-hint">Your latest Instagram export · select multiple files to merge</div>
+      <div class="drop-status" id="status-new">No file loaded</div>
+    </div>
+
+    <div id="error-msg"></div>
+
+    <button class="btn btn-save" id="btn-save-base" style="display:none" onclick="saveAsBase()">💾 Save as Base</button>
+    <button class="btn btn-primary" id="analyze-btn" disabled style="display:none">Compare with Base</button>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-bar">
+    <div class="stat-card red">
+      <div class="stat-num" id="stat-unfollowed">0</div>
+      <div class="stat-label">Unfollowed you</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num" id="stat-new">0</div>
+      <div class="stat-label">New followers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-still">0</div>
+      <div class="stat-label">Still following</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div id="base-update-notice" class="base-notice">
+      ✓ Base updated — next upload will compare against today's snapshot.
+    </div>
+
+    <div class="tab-bar" id="main-tab-bar">
+      <button class="tab-btn active" data-tab="unfollowed">
+        Unfollowed you <span class="badge" id="badge-unfollowed">0</span>
+      </button>
+      <button class="tab-btn" data-tab="newfollowers">
+        New followers <span class="badge" id="badge-new">0</span>
+      </button>
+      <button class="tab-btn" data-tab="still">
+        Still following <span class="badge" id="badge-still">0</span>
+      </button>
+    </div>
+
+    <div class="tab-panel active" id="panel-unfollowed">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'list-unfollowed')">
+        <button class="copy-btn" onclick="copyList('list-unfollowed',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="list-unfollowed"></ul>
+    </div>
+
+    <div class="tab-panel" id="panel-newfollowers">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'list-newfollowers')">
+        <button class="copy-btn" onclick="copyList('list-newfollowers',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="list-newfollowers"></ul>
+    </div>
+
+    <div class="tab-panel" id="panel-still">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'list-still')">
+        <button class="copy-btn" onclick="copyList('list-still',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="list-still"></ul>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Mutual Checker</div>
+
+  <div class="how-it-works">
+    <strong>How it works:</strong> Load your current <code>followers_1.json</code> and <code>following.json</code> from the same export. See who doesn't follow you back, who you haven't followed back, and your real mutuals.
+  </div>
+
+  <!-- Mutual file upload -->
+  <div id="m-upload-section">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="drop-zone" id="zone-mfollowers">
+        <input type="file" accept=".json,.html,.htm" multiple id="input-mfollowers">
+        <div class="drop-icon">👥</div>
+        <div class="drop-label">followers_1.json</div>
+        <div class="drop-hint">People who follow you · select multiple files</div>
+        <div class="drop-status" id="status-mfollowers">No file loaded</div>
+      </div>
+      <div class="drop-zone" id="zone-mfollowing">
+        <input type="file" accept=".json,.html,.htm" multiple id="input-mfollowing">
+        <div class="drop-icon">➡️</div>
+        <div class="drop-label">following.json</div>
+        <div class="drop-hint">People you follow</div>
+        <div class="drop-status" id="status-mfollowing">No file loaded</div>
+      </div>
+    </div>
+
+    <div id="m-error-msg" style="background:#fff3f3;border:1px solid #ffb3b3;border-radius:8px;padding:10px 14px;font-size:.88rem;color:#c62828;display:none;margin-top:14px"></div>
+
+    <button class="btn btn-primary" id="m-analyze-btn" disabled style="margin-top:14px">Check Mutuals</button>
+  </div>
+
+  <!-- Mutual stats -->
+  <div id="m-stats-bar" style="display:none;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div class="stat-card red">
+      <div class="stat-num" id="m-stat-notback">0</div>
+      <div class="stat-label">Not following back</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="m-stat-notfollowed" style="color:#f57c00">0</div>
+      <div class="stat-label">You don't follow back</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num" id="m-stat-mutuals">0</div>
+      <div class="stat-label">Mutuals</div>
+    </div>
+  </div>
+
+  <!-- Mutual results -->
+  <div id="m-results-section" style="display:none">
+    <div class="tab-bar" id="m-tab-bar">
+      <button class="tab-btn active" data-mtab="notback">
+        Not following back <span class="badge" id="m-badge-notback">0</span>
+      </button>
+      <button class="tab-btn" data-mtab="notfollowed">
+        You don't follow back <span class="badge" id="m-badge-notfollowed">0</span>
+      </button>
+      <button class="tab-btn" data-mtab="mutuals">
+        Mutuals <span class="badge" id="m-badge-mutuals">0</span>
+      </button>
+    </div>
+
+    <div class="tab-panel active" id="m-panel-notback">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'m-list-notback')">
+        <button class="copy-btn" onclick="copyList('m-list-notback',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="m-list-notback"></ul>
+    </div>
+
+    <div class="tab-panel" id="m-panel-notfollowed">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'m-list-notfollowed')">
+        <button class="copy-btn" onclick="copyList('m-list-notfollowed',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="m-list-notfollowed"></ul>
+    </div>
+
+    <div class="tab-panel" id="m-panel-mutuals">
+      <div class="panel-controls">
+        <input class="filter-input" type="text" placeholder="Filter…" oninput="filterList(this,'m-list-mutuals')">
+        <button class="copy-btn" onclick="copyList('m-list-mutuals',this)">Copy usernames</button>
+      </div>
+      <ul class="user-list" id="m-list-mutuals"></ul>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  All processing happens locally in your browser. No data is sent to any server.
+</footer>
+
+<script>
+  const STORAGE_KEY = 'ig_followers_snapshot';
+
+  let baseMap = null; // loaded from localStorage on page load
+  let newMap  = null; // loaded from the uploaded file
+
+  // ── Parse Instagram export JSON ─────────────────────────────────────────
+  function extractUser(entry) {
+    const sld = entry?.string_list_data?.[0];
+    if (sld?.value) return { username: sld.value, href: sld.href || '', timestamp: sld.timestamp || 0 };
+
+    const smd = entry?.string_map_data;
+    if (smd) {
+      const inner = smd['Username'] || smd['username'] || Object.values(smd)[0];
+      if (inner?.value) return { username: inner.value, href: inner.href || '', timestamp: inner.timestamp || 0 };
+    }
+
+    if (typeof entry?.title === 'string' && entry.title.length > 0) {
+      return { username: entry.title, href: '', timestamp: 0 };
+    }
+
+    return null;
+  }
+
+  function parseExport(json) {
+    let entries;
+    if (Array.isArray(json)) {
+      entries = json;
+    } else if (json && typeof json === 'object') {
+      entries = Object.values(json).find(v => Array.isArray(v));
+      if (!entries) throw new Error('Unexpected JSON structure — no array found.');
+    } else {
+      throw new Error('JSON is not a valid Instagram export.');
+    }
+
+    const map = new Map();
+    for (const entry of entries) {
+      const u = extractUser(entry);
+      if (u && u.username) {
+        if (!u.href) u.href = `https://www.instagram.com/${u.username}/`;
+        map.set(u.username.toLowerCase(), u);
+      }
+    }
+    return map;
+  }
+
+  // ── Parse HTML export ───────────────────────────────────────────────────
+  const SKIP_PATHS = new Set(['p','reel','reels','explore','accounts','stories','tv','ar','about','legal','help','blog','press','api','_n']);
+
+  function parseHtmlExport(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const map = new Map();
+    doc.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/instagram\.com\/([A-Za-z0-9._]+)\/?/);
+      if (!m) return;
+      const username = m[1];
+      if (!username || SKIP_PATHS.has(username.toLowerCase())) return;
+      if (!map.has(username.toLowerCase())) {
+        map.set(username.toLowerCase(), { username, href: `https://www.instagram.com/${username}/`, timestamp: 0 });
+      }
+    });
+    return map;
+  }
+
+  function readAndParseFile(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = () => reject(new Error(`Could not read "${file.name}".`));
+      r.onload = e => {
+        try {
+          if (/\.html?$/i.test(file.name)) {
+            resolve(parseHtmlExport(e.target.result));
+          } else {
+            resolve(parseExport(JSON.parse(e.target.result)));
+          }
+        } catch (err) { reject(new Error(`"${file.name}": ${err.message}`)); }
+      };
+      r.readAsText(file);
+    });
+  }
+
+  function mergeMaps(...maps) {
+    const out = new Map();
+    for (const m of maps) m.forEach((v, k) => { if (!out.has(k)) out.set(k, v); });
+    return out;
+  }
+
+  // Convert a Map back to a storable entries array
+  function mapToEntries(map) {
+    return [...map.values()].map(u => ({
+      string_list_data: [{
+        value: u.username,
+        href: u.href || `https://www.instagram.com/${u.username}/`,
+        timestamp: u.timestamp || 0
+      }]
+    }));
+  }
+
+  // ── Error display ───────────────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  // ── Update button visibility based on state ─────────────────────────────
+  function updateButtons() {
+    const hasBase = !!baseMap;
+    const hasNew  = !!newMap;
+
+    const btnSave    = document.getElementById('btn-save-base');
+    const btnAnalyze = document.getElementById('analyze-btn');
+
+    // Show "Save as Base" only when no base exists but a file is loaded
+    btnSave.style.display    = (!hasBase && hasNew) ? 'inline-block' : 'none';
+    // Show "Compare" only when base exists and new file is loaded
+    btnAnalyze.style.display = hasBase ? 'inline-block' : 'none';
+    btnAnalyze.disabled      = !(hasBase && hasNew);
+  }
+
+  // ── Handle file upload ──────────────────────────────────────────────────
+  async function handleNewFile(files) {
+    showError('');
+    const zone   = document.getElementById('zone-new');
+    const status = document.getElementById('status-new');
+    try {
+      const maps = await Promise.all([...files].map(readAndParseFile));
+      newMap = mergeMaps(...maps);
+      zone.className = 'drop-zone loaded';
+      const label = files.length > 1 ? `${files.length} files` : files[0].name;
+      status.textContent = `✓ ${label} (${newMap.size} accounts)`;
+    } catch (err) {
+      newMap = null;
+      zone.className = 'drop-zone';
+      status.textContent = 'Error loading file';
+      showError(err.message);
+    }
+    updateButtons();
+  }
+
+  // Wire up file input + drag-drop for the single upload zone
+  const inputNew = document.getElementById('input-new');
+  const zoneNew  = document.getElementById('zone-new');
+  inputNew.addEventListener('change', e => { if (e.target.files.length) handleNewFile(e.target.files); });
+  zoneNew.addEventListener('dragover',  e => { e.preventDefault(); zoneNew.classList.add('dragover'); });
+  zoneNew.addEventListener('dragleave', () => zoneNew.classList.remove('dragover'));
+  zoneNew.addEventListener('drop', e => {
+    e.preventDefault();
+    zoneNew.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleNewFile(e.dataTransfer.files);
+  });
+
+  // ── Save current newMap as the base ────────────────────────────────────
+  function saveAsBase() {
+    if (!newMap) return;
+    const data = { savedAt: Date.now(), entries: mapToEntries(newMap) };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      baseMap = new Map(newMap);
+      newMap  = null;
+      // Reset upload zone so user can upload the next file
+      zoneNew.className = 'drop-zone';
+      document.getElementById('status-new').textContent = 'No file loaded';
+      loadSnapshotUI();
+      updateButtons();
+    } catch {
+      showError('Could not save base (localStorage may be full or disabled).');
+    }
+  }
+
+  // ── Compare new file against base ───────────────────────────────────────
+  document.getElementById('analyze-btn').addEventListener('click', runAnalysis);
+
+  function runAnalysis() {
+    if (!baseMap || !newMap) return;
+    showError('');
+
+    const unfollowed   = sortBy([...baseMap.values()].filter(u => !newMap.has(u.username.toLowerCase())));
+    const newFollowers = sortBy([...newMap.values()].filter(u => !baseMap.has(u.username.toLowerCase())));
+    const still        = sortBy([...newMap.values()].filter(u =>  baseMap.has(u.username.toLowerCase())));
+
+    setText('stat-unfollowed',  unfollowed.length);
+    setText('stat-new',         newFollowers.length);
+    setText('stat-still',       still.length);
+    setText('badge-unfollowed', unfollowed.length);
+    setText('badge-new',        newFollowers.length);
+    setText('badge-still',      still.length);
+
+    renderList(unfollowed,   'list-unfollowed');
+    renderList(newFollowers, 'list-newfollowers');
+    renderList(still,        'list-still');
+
+    document.getElementById('stats-bar').style.display       = 'grid';
+    document.getElementById('results-section').style.display = 'block';
+
+    // Auto-update base to the new snapshot
+    try {
+      const data = { savedAt: Date.now(), entries: mapToEntries(newMap) };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      baseMap = new Map(newMap);
+      loadSnapshotUI();
+      document.getElementById('base-update-notice').style.display = 'flex';
+    } catch {
+      // Storage failure doesn't block showing results
+    }
+
+    document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function sortBy(arr) {
+    return arr.slice().sort((a, b) => a.username.toLowerCase().localeCompare(b.username.toLowerCase()));
+  }
+
+  function setText(id, val) { document.getElementById(id).textContent = val; }
+
+  // ── Render list ─────────────────────────────────────────────────────────
+  function renderList(users, listId) {
+    const ul = document.getElementById(listId);
+    if (!users.length) { ul.innerHTML = '<li class="empty-state">Nobody here.</li>'; return; }
+    ul.innerHTML = users.map(u => {
+      const initial = (u.username[0] || '?').toUpperCase();
+      const date    = u.timestamp ? new Date(u.timestamp * 1000).toLocaleDateString() : '';
+      return `<li class="user-item">
+        <div class="user-avatar">${initial}</div>
+        <a class="user-name" href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">${esc(u.username)}</a>
+        ${date ? `<span class="user-date">${date}</span>` : ''}
+      </li>`;
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Filter ───────────────────────────────────────────────────────────────
+  function filterList(input, listId) {
+    const q = input.value.toLowerCase();
+    document.querySelectorAll(`#${listId} .user-item`).forEach(li => {
+      const name = li.querySelector('.user-name')?.textContent.toLowerCase() || '';
+      li.classList.toggle('hidden', q.length > 0 && !name.includes(q));
+    });
+  }
+
+  // ── Copy ─────────────────────────────────────────────────────────────────
+  function copyList(listId, btn) {
+    const names = [...document.querySelectorAll(`#${listId} .user-name`)]
+      .filter(a => !a.closest('.user-item').classList.contains('hidden'))
+      .map(a => a.textContent.trim());
+    if (!names.length) return;
+    navigator.clipboard.writeText(names.join('\n')).then(() => {
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy usernames'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  // ── Tabs (scoped to each section) ────────────────────────────────────────
+  document.getElementById('main-tab-bar').querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.getElementById('main-tab-bar').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#results-section .tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`panel-${tab}`).classList.add('active');
+    });
+  });
+
+  // ── Base management ───────────────────────────────────────────────────────
+  function loadSnapshotUI() {
+    const raw      = localStorage.getItem(STORAGE_KEY);
+    const info     = document.getElementById('snapshot-info');
+    const btnClear = document.getElementById('btn-clear-saved');
+
+    if (!raw) {
+      info.innerHTML = 'No base saved yet.<span>Upload your followers_1.json to get started.</span>';
+      btnClear.style.display = 'none';
+      baseMap = null;
+      updateButtons();
+      return;
+    }
+
+    try {
+      const data  = JSON.parse(raw);
+      const date  = new Date(data.savedAt).toLocaleString();
+      baseMap     = parseExport(data.entries);
+      const count = baseMap.size;
+      info.innerHTML = `Base saved on <strong>${esc(date)}</strong><span>${count} followers at that time</span>`;
+      btnClear.style.display = 'inline-block';
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+      baseMap = null;
+      loadSnapshotUI();
+      return;
+    }
+    updateButtons();
+  }
+
+  document.getElementById('btn-clear-saved').addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    baseMap = null;
+    document.getElementById('stats-bar').style.display       = 'none';
+    document.getElementById('results-section').style.display = 'none';
+    loadSnapshotUI();
+  });
+
+  // Init on load
+  loadSnapshotUI();
+
+  // ══════════════════════════════════════════════════════════════════
+  // MUTUAL CHECKER
+  // ══════════════════════════════════════════════════════════════════
+  let mFollowersMap = null;
+  let mFollowingMap = null;
+
+  function showMError(msg) {
+    const el = document.getElementById('m-error-msg');
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  async function handleMFiles(files, slot) {
+    showMError('');
+    const zone   = document.getElementById(`zone-m${slot}`);
+    const status = document.getElementById(`status-m${slot}`);
+    try {
+      const maps = await Promise.all([...files].map(readAndParseFile));
+      const map  = mergeMaps(...maps);
+      if (slot === 'followers') { mFollowersMap = map; }
+      else                      { mFollowingMap = map; }
+      zone.className = 'drop-zone loaded';
+      const label = files.length > 1 ? `${files.length} files` : files[0].name;
+      status.textContent = `✓ ${label} (${map.size} accounts)`;
+    } catch (err) {
+      if (slot === 'followers') mFollowersMap = null; else mFollowingMap = null;
+      zone.className = 'drop-zone';
+      status.textContent = 'Error loading file';
+      showMError(err.message);
+    }
+    document.getElementById('m-analyze-btn').disabled = !(mFollowersMap && mFollowingMap);
+  }
+
+  ['followers', 'following'].forEach(slot => {
+    const input = document.getElementById(`input-m${slot}`);
+    const zone  = document.getElementById(`zone-m${slot}`);
+    input.addEventListener('change', e => { if (e.target.files.length) handleMFiles(e.target.files, slot); });
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleMFiles(e.dataTransfer.files, slot);
+    });
+  });
+
+  document.getElementById('m-analyze-btn').addEventListener('click', runMutualAnalysis);
+
+  function runMutualAnalysis() {
+    if (!mFollowersMap || !mFollowingMap) return;
+    showMError('');
+
+    const notBack     = sortBy([...mFollowingMap.values()].filter(u => !mFollowersMap.has(u.username.toLowerCase())));
+    const notFollowed = sortBy([...mFollowersMap.values()].filter(u => !mFollowingMap.has(u.username.toLowerCase())));
+    const mutuals     = sortBy([...mFollowersMap.values()].filter(u =>  mFollowingMap.has(u.username.toLowerCase())));
+
+    setText('m-stat-notback',      notBack.length);
+    setText('m-stat-notfollowed',  notFollowed.length);
+    setText('m-stat-mutuals',      mutuals.length);
+    setText('m-badge-notback',     notBack.length);
+    setText('m-badge-notfollowed', notFollowed.length);
+    setText('m-badge-mutuals',     mutuals.length);
+
+    renderList(notBack,     'm-list-notback');
+    renderList(notFollowed, 'm-list-notfollowed');
+    renderList(mutuals,     'm-list-mutuals');
+
+    document.getElementById('m-stats-bar').style.display      = 'grid';
+    document.getElementById('m-results-section').style.display = 'block';
+    document.getElementById('m-results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.getElementById('m-tab-bar').querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.mtab;
+      document.getElementById('m-tab-bar').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#m-results-section .tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`m-panel-${tab}`).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
